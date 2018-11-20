@@ -78,10 +78,17 @@ with open('../BeckerVowelCorpus.csv') as corpus:
 # counts of inventory occurence
 # dict(key=sorted phoneme inventory string, val=empirical count)
 invcounts = {}
+# used to normalize the total product of phi terms w.r.t. to inventory frequency
+# TODO: should this be smoothed? how does this deal with unseen languages/inventories?
+phi_norm_const = float(0)
+
 for ld, inv in data.items():
     # sorted phoneme inventory string
     pset = "".join(sorted(list(inv.keys())))
     if pset not in invcounts:
+        # the first time we see the set, add the focalization score to the phi_norm_const
+        foc = [np.linalg.norm(np.array(samples.pop())) for samples in inv.values()]
+        phi_norm_const += np.prod(np.array(foc))
         invcounts[pset] = 0.0
     invcounts[pset] += 1.0
 
@@ -153,10 +160,14 @@ for phoneme in ps:
 
 # phoneme probability function
 def phi(p):
-    p = p[1]
-    result = phonemeFreqs[p] / phonemeCount
-    if result < 0 or result > 1:
-        print("[ERROR] phi probability of " + str(result))
+    #p = p[1]
+    #result = phonemeFreqs[p] / phonemeCount
+    #if result < 0 or result > 1:
+    #    print("[ERROR] phi probability of " + str(result))
+    #return result
+    result = np.linalg.norm(np.array(p[0]))
+    #if result < 0 or result > 1:
+    #    print("[ERROR] phi probability of " + str(result))
     return result
 
 # probability function for inter-phoneme interactions
@@ -167,16 +178,25 @@ def psi(a, b, embeddings):
     length = np.linalg.norm(x - y)
     # quasi-coulomb's law
     result = np.exp(np.negative(1 / (T * length)))
+    #if result < 0 or result > 1:
+    #    print("[ERROR] psi probability of " + str(result))
+    return result
+
+# Bernoulli Point Process probability model
+def bpp(inv, embeddings):
+    # pass the phoneme-annotated data points down to phi for debugging
+    foc = [phi(p) for p in inv]
+    result = np.prod(np.array(foc)) / phi_norm_const
     if result < 0 or result > 1:
-        print("[ERROR] psi probability of " + str(result))
+        print("[ERROR] bpp probability of " + str(result))
     return result
 
 # Markov Point Process probability model
 def mpp(inv, embeddings):
-    # pass the phoneme-annotated data points down to foc and dis for debugging
+    # pass the phoneme-annotated data points down to phi and psi for debugging
     foc = [phi(p) for p in inv]
     dis = [psi(p1, p2, embeddings) for (p1, p2) in combinations(inv, 2)]
-    result = np.prod(np.append(np.array(foc), dis))
+    result = np.prod(np.append(np.array(foc), dis)) / phi_norm_const
     if result < 0 or result > 1:
         print("[ERROR] mpp probability of " + str(result))
     return result
@@ -189,7 +209,7 @@ def mpp(inv, embeddings):
 #   where y is predicted language inventory probability (according to mpp)
 #   and y' is empirical probability (number of inventory occurences / N)
 
-def cross_entropy(y, embeddings):
+def cross_entropy(y, embeddings, model):
     #invcounts = {}
     #N = 0.0
     #for inv, ic in y:
@@ -206,26 +226,36 @@ def cross_entropy(y, embeddings):
     xent = 0.0
 
     for inv, ic in y:
-        xent += np.log(mpp(inv, e)) * ic / N
+        xent += np.log(model(inv, e)) * ic / N
     return np.negative(xent)
 
 def cross_validate(data, embeddings, split_size=10):
-    bestresult = float("inf")
+    bestbppresult = float("inf")
+    bestmppresult = float("inf")
     kf = KFold(n_splits=split_size)
+
     for i, (train_idx, val_idx) in enumerate(kf.split(data)):
-        print("FOLD " + str(i+1) + "\tstarting at " + str(val_idx[0]) + "\twith cross-entropy = ", end='')
+        print("fold " + str(i+1) + "\tstarting at " + str(val_idx[0]) + "\twith cross-entropy = ", end='')
         val_x = data[val_idx]
-        result = cross_entropy(val_x, embeddings)
-        print(result)
-        if result < bestresult:
-            bestresult = result
-    return bestresult
+        bppresult = cross_entropy(val_x, embeddings, bpp)
+        mppresult = cross_entropy(val_x, embeddings, mpp)
+
+        print(str(int(bppresult)) + " (bpp) / ", end='')
+        print(str(int(mppresult)) + " (mpp)")
+
+        if bppresult < bestbppresult:
+            bestbppresult = bppresult
+        if mppresult < bestmppresult:
+            bestmppresult = mppresult
+    return (bestbppresult, bestmppresult)
 
 def e(v):
     return v
 print("\n---- Naive ZScore Embeddings ----")
-result = cross_validate(zsc_data, e)
-print("\tachieved cross-entropy = " + str(result))
+bppresult, mppresult = cross_validate(zsc_data, e)
+print("\tBPP achieved cross-entropy = " + str(bppresult))
+print("\tMPP achieved cross-entropy = " + str(mppresult))
 print("\n---- PCA Embeddings into R^2 ----")
 result = cross_validate(pca_data, e)
 print("\tachieved cross-entropy = " + str(result))
+
