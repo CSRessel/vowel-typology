@@ -19,12 +19,12 @@ from sklearn.decomposition import PCA
 # ------------------------------------------------------------------------------
 # consts
 
-R = 16
+#R = 16
 T = 0.5
-AVG = 1951.138539042821
-BATCH = 8
-STEPS = 200
-EPOCHS = 5
+#AVG = 1951.138539042821
+#BATCH = 8
+#STEPS = 200
+#EPOCHS = 5
 
 # ------------------------------------------------------------------------------
 # data loading
@@ -226,7 +226,7 @@ def cross_entropy(y, embeddings, model):
     xent = 0.0
 
     for inv, ic in y:
-        xent += np.log(model(inv, e)) * ic / N
+        xent += np.log(model(inv, embeddings)) * ic / N
     return np.negative(xent)
 
 def cross_validate(data, embeddings, split_size=10):
@@ -256,6 +256,6 @@ bppresult, mppresult = cross_validate(zsc_data, e)
 print("\tBPP achieved cross-entropy = " + str(bppresult))
 print("\tMPP achieved cross-entropy = " + str(mppresult))
 print("\n---- PCA Embeddings into R^2 ----")
-result = cross_validate(pca_data, e)
-print("\tachieved cross-entropy = " + str(result))
-
+bppresult, mppresult = cross_validate(pca_data, e)
+print("\tBPP achieved cross-entropy = " + str(bppresult))
+print("\tMPP achieved cross-entropy = " + str(mppresult))
