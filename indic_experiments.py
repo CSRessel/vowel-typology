@@ -1,99 +1,101 @@
 
-import os.path
-import pickle
 import numpy as np
-from cotterell_model import CotterellModel
+from scipy.stats import zscore
+from sklearn.model_selection import KFold
+from vowel_typology_model import VowelTypologyModel
+from indic_formant_data import IndicFormantData
 
-VOWEL_FORMANT_FILE = "data/vowel_formants.log"
-INDIC_DATA_STORE = "data/indic_data.pickle"
+model = VowelTypologyModel()
+formant_data = IndicFormantData()
 
-model = CotterellModel()
+aggr_data, aggr_labs = formant_data.aggr
+unknown = set()
+# remove samples with labels unknown w.r.t. the becker vowel corpus annotations
+# (backwards so we don't offset indices)
+for i, (sample, label) in enumerate(zip(reversed(aggr_data), reversed(aggr_labs))):
+    i = formant_data.N - 1 - i
+    if label in unknown:
+        aggr_data = np.delete(aggr_data, i, axis=0)
+        aggr_labs = np.delete(aggr_labs, i)
 
-# data importing
+# TODO: hardcoded phoneme label conversions?
+#fest2ipa = dict()
 
-#  <- formant ->
-#  _____________
-# |\             \  ^
-# | \             \  \
-# |  \             \  \ time
-# |   \             \  \
-# |    \_____________\  v
-# |    |             |  ^
-# |    |             |  |
-# |    |             |  | sample
-# |    |             |  |
-# |    |             |
-# ...
-#
-# voice_samples[sample, timestep, formant]
-# sample   - from 1 to 37901
-# timestep - from 1 to 10
-# formant  - from 1 to 3
+# delete the third value (f3) along axis=2
+aggr_data = np.delete(aggr_data, 2, axis=2)
+zsc_data = zscore(aggr_data, axis=1)
+kf = KFold(n_splits=10)
 
-# this file takes a bit to load so let's cache the loaded data model
-if os.path.isfile(INDIC_DATA_STORE):
-    with open(INDIC_DATA_STORE, 'rb') as indic_data_file:
-        data, N, aggr_data, aggr_labs = pickle.load(indic_data_file)
-else:
-    #       voice                     labels                  samples
-    # dict("lang_dialect_dataset" -> (np.array(vowel labels), np.array(formant samples)))
-    data = {}
-    N = 0
-    aggr_data = np.array([])
-    aggr_labs = np.array([])
+# average per-vowel measurements (using middle four intervals), returning an
+# inventory with one entry per vowel
+def preprocess(samples, labels):
+    f1s = {}
+    f2s = {}
+    # average per-vowel measurements (using middle four intervals)
+    for sample, vowel in zip(val_x, val_y):
+        for interval in sample[3:7]:
+            f1sum = 0.0
+            f1count = 0
+            f2sum = 0.0
+            f2count = 0
+            if vowel in f1s:
+                assert vowel in f2s
+                f1sum, f1count = f1s[vowel]
+                f2sum, f2count = f2s[vowel]
 
-    with open(VOWEL_FORMANT_FILE) as formants:
-        for row in formants.readlines():
-            label, *entries = row.split()
-            if label == "label":
-                continue
+            f1sum += interval[0]
+            f1count += 1
+            f2sum += interval[1]
+            f2count += 1
+            f1s[vowel] = (f1sum, f1count)
+            f2s[vowel] = (f2sum, f2count)
 
-            # voice = "lang_dialect_dataset", descriptor = "utterance-vowel-instance"
-            voice, descriptor = label.rsplit('_', 1)
-            uttr_number, sample_label, instance = descriptor.split('-')
+    vowel_inv = []
+    for v in f1s.keys(): #(v1, (f1sum, f1count)), (v2, (f2sum, f2count)) in zip(f1s.items(), f2s.items()):
+        assert v in f2s
+        f1sum, f1count = f1s[v]
+        f2sum, f2count = f2s[v]
+        vowel_inv.append((np.array([f1sum / f1count, f2sum / f2count]), v))
 
-            sample_formants = np.zeros((10, 3))
-            for i, entry in enumerate(entries):
-                timestep = int(i/3)
-                formant = i%3
-                sample_formants[timestep, formant] = float(entry)
+    return vowel_inv
 
-            if voice in data:
-                sample_labels, samples = data[voice]
-                samples = np.append(samples, np.expand_dims(sample_formants, axis=0), axis=0)
-                sample_labels = np.append(sample_labels, [sample_label])
-            else:
-                samples = np.expand_dims(sample_formants, axis=0)
-                sample_labels = np.array([sample_label])
-            data[voice] = (sample_labels, samples)
-            N += 1
+def e(v):
+    return v
 
-            if aggr_data.size > 0:
-                aggr_data = np.append(aggr_data, np.expand_dims(sample_formants, axis=0), axis=0)
-                aggr_labs = np.append(aggr_labs, [sample_label])
-            else:
-                aggr_data = np.expand_dims(sample_formants, axis=0)
-                aggr_labs = np.array([sample_label])
-
-    with open(INDIC_DATA_STORE, 'wb') as indic_data_file:
-        pickle.dump((data, N, aggr_data, aggr_labs), indic_data_file)
-
+# 10 fold evaluation of probability of the fold's validation set's assigned
+# probability mass
+bestbppresult = float("inf")
+bestmppresult = float("inf")
 print()
-print("Formant data loaded!")
-print(str(len(data.keys())) + " unique voice/language/dialect tuples")
-print(str(N) + " individual vowel data points")
+for i, (train_idx, val_idx) in enumerate(kf.split(zsc_data, aggr_labs)):
+    print("fold " + str(i+1) + "\tstarting at " + str(val_idx[0]) + "\twith probability = ", end='')
+    val_x = zsc_data[val_idx]
+    val_y = aggr_labs[val_idx]
+    vowel_inv = preprocess(val_x, val_y)
 
-# evaluation tasks
-# ----
-# cross entropy for held out vowel instances
-#   simple-exp model run on sets of these vowels?
-#     so just try creating zsc and pca data sets from each voice's phonemes
-#     then print model probability of each voice's vowel inventory
-#     then print model xent of each speaker's vowel inv's when multiple languages available
-#
+    def e(v):
+        return v
+    bppresult = model.bpp(inv=vowel_inv, embeddings=e)
+    mppresult = model.mpp(inv=vowel_inv, embeddings=e)
+    print(str(int(bppresult)) + " (bpp) / ", end='')
+    print(str(int(mppresult)) + " (mpp)")
+    if bppresult < bestbppresult:
+        bestbppresult = bppresult
+    if mppresult < bestmppresult:
+        bestmppresult = mppresult
+
+# essentially zero probability, because
+#   A) the model doesn't do focalization correctly
+#   B) these vowel inventories are real big, even in the KFold
+# need to fix the VowelTypologyModel, and consider removing the least common
+# vowels from this dataset?
+print("\tBPP assigns probability = " + str(bestbppresult))
+print("\tMPP assigns probability = " + str(bestmppresult))
+
 # cloze tasks
 #   through model inference
 #   through neural net
+
 # classification tasks (vowel, speaker, dialect)
 #   through model inference
 #   through neural net

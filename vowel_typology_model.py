@@ -139,8 +139,8 @@ class VowelTypologyModel:
         print()
         print("Becker vowel corpus loaded!")
         print(str(len(f1s)) + " phoneme samples")
-        print("formant one approx. " + str(int(np.mean(f1s))) + " +/- " + str(int(np.std(f1s))))
-        print("formant two approx. " + str(int(np.mean(f2s))) + " +/- " + str(int(np.std(f2s))))
+        print("f1 ~ " + str(int(np.mean(f1s))) + " +/- " + str(int(np.std(f1s))))
+        print("f2 ~ " + str(int(np.mean(f2s))) + " +/- " + str(int(np.std(f2s))))
 
         zsc_formant_data = list(zip(zip(zscore(f1s), zscore(f2s)), ps))
         self.zsc_data = np.array([(np.array(zsc_formant_data[i:j]),ic) for (i,j,ic) in tabulation])

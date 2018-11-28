@@ -6,11 +6,11 @@ import pickle
 class IndicFormantData:
 
     # fields:
-    #   data         - loaded formant data
-    #   N            - total sample count
-    #   aggr         - tuple of (aggregated formant samples, aggregated sample labels_
-    #   vowel_lookup - tuple of (dict(vowel, int), np.array(vowels))
-    #                  (allows vowel to int and int to vowel conversion)
+    #   data   - loaded formant data
+    #   N      - total sample count
+    #   aggr   - tuple of (aggregated formant samples, aggregated sample labels_
+    #   lookup - tuple of (dict(vowel, int), np.array(vowels))
+    #              (allows vowel to int and int to vowel conversion)
 
     # the data dict has in each value a label/samples tuple
     # the label array is a 1d array of vowel labels (strings)
@@ -27,7 +27,7 @@ class IndicFormantData:
     # |    |             |  |
     # |    |             |  | sample
     # |    |             |  |
-    # |    |             |
+    # |    |             |  |
     # ...
     #
     # voice_samples[sample, timestep, formant]
@@ -49,7 +49,11 @@ class IndicFormantData:
         # this file takes a bit to load so let's cache the loaded data model
         if os.path.isfile(self.INDIC_DATA_STORE):
             with open(self.INDIC_DATA_STORE, 'rb') as indic_data_file:
-                self = pickle.load(indic_data_file)
+                obj = pickle.load(indic_data_file)
+                self.data = obj.data
+                self.N = obj.N
+                self.aggr = obj.aggr
+                self.lookup = obj.lookup
         else:
             #       voice                     labels                  samples
             # dict("lang_dialect_dataset" -> (np.array(vowel labels), np.array(formant samples)))
@@ -109,3 +113,11 @@ class IndicFormantData:
         print("Formant data loaded!")
         print(str(len(self.data.keys())) + " unique voice/language/dialect tuples")
         print(str(self.N) + " individual vowel data points")
+
+        samples, intervals, formants = self.aggr[0].shape
+        flattened = self.aggr[0].reshape(samples * intervals, formants)
+        avgs = np.mean(flattened, axis=0)
+        stds = np.std(flattened, axis=0)
+        print("f1 ~ " + str(int(avgs[0])) + " +/- " + str(int(stds[0])))
+        print("f2 ~ " + str(int(avgs[1])) + " +/- " + str(int(stds[1])))
+        print("f3 ~ " + str(int(avgs[2])) + " +/- " + str(int(stds[2])))
