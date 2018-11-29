@@ -42,6 +42,10 @@ class IndicFormantData:
     VOWEL_FORMANT_FILE = "data/vowel_formants.log"
     INDIC_DATA_STORE = "data/dump/indic_data.pickle"
 
+    # ownas ow aInas onas inas uy enas Anas unas ay (totalling 2.2%)
+    UNCOMMON = set(['ownas', 'ow', 'aInas', 'onas', 'inas', 'uy', 'enas', \
+        'Anas', 'unas', 'ay'])
+
     # --------------------------------------------------------------------------
     # data loading
 
@@ -65,8 +69,9 @@ class IndicFormantData:
 
             with open(self.VOWEL_INVENTORY_FILE) as vowels:
                 for i, v in enumerate(vowels.readlines()):
-                    v2i[v] = i
-                    i2v.append(v)
+                    if ':' not in v and '=' not in v:
+                        v2i[v] = i
+                        i2v.append(v)
 
             with open(self.VOWEL_FORMANT_FILE) as formants:
                 for row in formants.readlines():
@@ -77,6 +82,13 @@ class IndicFormantData:
                     # voice = "lang_dialect_dataset", descriptor = "utterance-vowel-instance"
                     voice, descriptor = label.rsplit('_', 1)
                     uttr_number, sample_label, instance = descriptor.split('-')
+                    # ignore diacritics that don't affect formants
+                    #   : for lengthened, = for syllabic
+                    sample_label = sample_label.replace(":", "").replace("=", "")
+                    # _r is a raised vowel, whose contrastivity we maintain
+                    if sample_label in UNCOMMON:
+                        # strip least common 2% of vowels from data
+                        continue
 
                     sample_formants = np.zeros((10, 3))
                     for i, entry in enumerate(entries):
@@ -121,3 +133,33 @@ class IndicFormantData:
         print("f1 ~ " + str(int(avgs[0])) + " +/- " + str(int(stds[0])))
         print("f2 ~ " + str(int(avgs[1])) + " +/- " + str(int(stds[1])))
         print("f3 ~ " + str(int(avgs[2])) + " +/- " + str(int(stds[2])))
+
+        ## vowel frequency analysis
+        #from ascii_graph import Pyasciigraph
+        #print()
+        #freqs = {}
+        #for v in self.aggr[1]:
+        #    if v not in freqs:
+        #        freqs[v] = 0
+        #    freqs[v] += 1
+        #def format_label(v, p):
+        #    a = str(v)
+        #    b = "{0:.2f}".format(p * 100) + "%"
+        #    c = 15 - len(a) - len(b) # buffer spaces for alignment
+        #    return a + (" " * c) + b
+        #freq_graph = [(format_label(v, float(c) / self.N), int(c)) for v, c in freqs.items()]
+        #graph = Pyasciigraph()
+        #for line in graph.graph('indic vowel frequency', freq_graph):
+        #    print(line)
+        #print("vowels making up the bottom 2% of the data:")
+        #running_total = 0.0
+        #for c, v in sorted([(c, v) for v, c in freqs.items()]):
+        #    running_total += float(c) / self.N
+        #    print(v, end=' ')
+        #    if running_total >= 0.02:
+        #        break
+        #print(f'(totalling {running_total*100}%)')
+
+
+if __name__ == '__main__':
+    formant_data = IndicFormantData()

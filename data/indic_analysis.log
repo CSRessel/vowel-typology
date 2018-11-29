@@ -1,0 +1,30 @@
+Formant data loaded!
+18 unique voice/language/dialect tuples
+37091 individual vowel data points
+f1 ~ 642 +/- 280
+f2 ~ 1892 +/- 500
+f3 ~ 2966 +/- 416
+
+indic vowel frequency
+###############################################################################
+█████████████████                                         4707  9r       12.69%
+███████████████████████████████████████████████████████  14749  A        39.76%
+████████████████                                          4475  e        12.06%
+████████████████████████                                  6565  i        17.70%
+███████                                                   1958  o         5.28%
+█████████                                                 2501  u         6.74%
+██                                                         684  aI        1.84%
+                                                           266  aU        0.72%
+                                                            73  inas      0.20%
+                                                           132  unas      0.36%
+                                                           121  Anas      0.33%
+                                                            34  aInas     0.09%
+                                                           112  enas      0.30%
+█                                                          355  E         0.96%
+                                                           163  ay        0.44%
+                                                            68  onas      0.18%
+                                                            20  ow        0.05%
+                                                             3  ownas     0.01%
+                                                           105  uy        0.28%
+vowels making up the bottom 2% of the data:
+ownas ow aInas onas inas uy enas Anas unas ay (totalling 2.240435685206654%)

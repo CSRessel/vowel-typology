@@ -267,13 +267,12 @@ for voice, (voice_labs, voice_data) in formant_data.data.items():
     all_results.append((voice, "cloze012", sum(bpp012s) / CLOZE_TRIALS * 100, sum(mpp012s) / CLOZE_TRIALS * 100))
 
 
-
 # TODO ?
 # correct the vowel label discrepancies between indic and becker, enabling
 #   proper cloze tasks (with a bigger class of candidate inventories)
 # classification tasks (vowel, speaker, dialect)
 #   through model inference
-#   through neural net
+# cloze and classification tasks neural net for comparison
 
 print()
 print(str(("VOICE", "TASK", "BPP RESULT", "MPP RESULT")))
