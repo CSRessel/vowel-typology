@@ -8,7 +8,7 @@ class IndicFormantData:
     # fields:
     #   data   - loaded formant data
     #   N      - total sample count
-    #   aggr   - tuple of (aggregated formant samples, aggregated sample labels_
+    #   aggr   - tuple of (aggregated formant samples, aggregated sample labels)
     #   lookup - tuple of (dict(vowel, int), np.array(vowels))
     #              (allows vowel to int and int to vowel conversion)
 
@@ -45,6 +45,9 @@ class IndicFormantData:
     # ownas ow aInas onas inas uy enas Anas unas ay (totalling 2.2%)
     UNCOMMON = set(['ownas', 'ow', 'aInas', 'onas', 'inas', 'uy', 'enas', \
         'Anas', 'unas', 'ay'])
+
+    SAMPA_LOOKUP = { "aI": "aI", "aU": "aʊ", "i": "i", "e": "e", "o": "o", \
+        "ow": "oʷ", "u": "u", "A": "ɑ", "E": "ɛ", "9r": "œ̝" }
 
     # --------------------------------------------------------------------------
     # data loading
@@ -86,9 +89,12 @@ class IndicFormantData:
                     #   : for lengthened, = for syllabic
                     sample_label = sample_label.replace(":", "").replace("=", "")
                     # _r is a raised vowel, whose contrastivity we maintain
+                    # same for _w as labialisation
                     if sample_label in UNCOMMON:
                         # strip least common 2% of vowels from data
                         continue
+                    # convert to a common IPA symbol
+                    sample_label = SAMPA_LOOKUP[sample_label]
 
                     sample_formants = np.zeros((10, 3))
                     for i, entry in enumerate(entries):

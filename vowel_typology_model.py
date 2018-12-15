@@ -118,9 +118,11 @@ class VowelTypologyModel:
         #   phonemes at once in the data processing steps (zscore and pca)
         tabulation = []
 
+        all_vowels = set()
         for languagedialect, inventory in self.data.items():
             start = count
             for phoneme, samples in inventory.items():
+                all_vowels.add(phoneme)
                 if samples:
                     count += 1
                     f1, f2 = samples.pop()
@@ -138,6 +140,7 @@ class VowelTypologyModel:
 
         print()
         print("Becker vowel corpus loaded!")
+        #print(", ".join(sorted(list(all_vowels))))
         print(str(len(f1s)) + " phoneme samples")
         print("f1 ~ " + str(int(np.mean(f1s))) + " +/- " + str(int(np.std(f1s))))
         print("f2 ~ " + str(int(np.mean(f2s))) + " +/- " + str(int(np.std(f2s))))
